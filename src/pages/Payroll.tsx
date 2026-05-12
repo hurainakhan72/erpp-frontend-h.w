@@ -1,4 +1,5 @@
 import { useState, useEffect } from "react";
+import DecisionBanner from '../components/common/DecisionBanner';
 
 /* ═══════════ TYPES ═══════════ */
 interface Employee {
@@ -164,6 +165,9 @@ export default function Payroll() {
   const allowedEmps = CURRENT_USER_DEPT
     ? EMPLOYEES.filter(e=>e.department===CURRENT_USER_DEPT)
     : EMPLOYEES;
+
+  // Show coming-soon banner because backend does not expose payroll endpoints yet
+  const backendSupportsPayroll = false;
 
   function openGen() {
     const first = allowedEmps[0];
@@ -369,6 +373,12 @@ export default function Payroll() {
       `}</style>
 
       <div style={{minHeight:"100vh",background:"#f1f5f9",fontFamily:"'DM Sans',system-ui,sans-serif",padding:"28px 32px"}}>
+
+        {!backendSupportsPayroll && (
+          <div style={{marginBottom:12}}>
+            <DecisionBanner>COMING SOON — Payroll backend endpoints not implemented. This page uses mock/local data.</DecisionBanner>
+          </div>
+        )}
 
         {/* ── Topbar ── */}
         <div style={{display:"flex",justifyContent:"space-between",alignItems:"flex-start",marginBottom:24,flexWrap:"wrap",gap:12}}>

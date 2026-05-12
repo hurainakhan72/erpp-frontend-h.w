@@ -3,6 +3,7 @@ import { useData } from '../context/DataContext';
 import { formatPKR } from '../services/api';
 import { Plus, Calendar as CalendarIcon, Filter, TrendingUp, Award, Users, DollarSign, ChevronUp, History, Briefcase, Clock } from 'lucide-react';
 import Modal from '../components/common/Modal';
+import DecisionBanner from '../components/common/DecisionBanner';
 import { useToastContext } from '../context/ToastContext';
 
 // ─── Global CSS ───────────────────────────────────────────────────────────────
@@ -218,6 +219,11 @@ export default function Promotions() {
           <button className="pr-btn pr-btn-primary" onClick={() => setModal(true)}>
             <Plus size={13}/> Record Promotion
           </button>
+        </div>
+
+        {/* Coming soon note: backend promotions endpoints not implemented */}
+        <div style={{marginBottom:12}}>
+          <DecisionBanner>COMING SOON — Promotions backend endpoints are not implemented; this page uses mock/local data.</DecisionBanner>
         </div>
 
         {/* ── Summary Stat Cards ── */}
