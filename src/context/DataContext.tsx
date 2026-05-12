@@ -47,11 +47,20 @@ export type AttendanceLockStatus =
   | 'finalized';
 
 export interface AttendanceLock {
-  status: AttendanceLockStatus;
+  status: AttendanceLockStatus | 'rejected';
   lockedBy: string;
   lockedAt: string;
   branch?: string;
   date?: string;
+  // optional arrays for unlock requests and approvals
+  unlockRequests?: string[];
+  unlockedEmployees?: string[];
+  // finalized / verified metadata
+  verifiedBy?: string;
+  verifiedAt?: string;
+  reason?: string;
+  // optional sheet snapshot
+  sheet?: any[];
 }
 
 interface DataContextType {
