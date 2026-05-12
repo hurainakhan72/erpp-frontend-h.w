@@ -4,6 +4,8 @@
 
 import React, { useState, useMemo, useCallback, useEffect } from 'react';
 import { useAuth } from '../context/AuthContext';
+import { useData } from '../context/DataContext';
+import { useLocation } from 'react-router-dom';
 import {
   BRANCHES, EMP_DATA, INITIAL_LOCKS, INITIAL_REPORTS,
   nameGrad, getIni, SHARED_CSS,
@@ -130,9 +132,11 @@ function RejectModal({ branch, onClose, onConfirm }: RejectModalProps) {
 export default function BranchHRDashboard() {
   const { activeRole } = useAuth();
   const { show: toast, ToastEl } = useToast();
+  const { attendanceLocks, setAttendanceLocks, setSavedReports } = useData();
+  const location = useLocation();
 
-  // Guard
-  if (activeRole !== 'super_admin' && activeRole !== 'head_hr') {
+  // Guard: allow Branch HR and Department HR too so they can view their branch sheets
+  if (activeRole !== 'super_admin' && activeRole !== 'head_hr' && activeRole !== 'branch_hr' && activeRole !== 'department_hr') {
     return (
       <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', height: '60vh', flexDirection: 'column', gap: 12, color: '#94a3b8' }}>
         <span style={{ fontSize: 40 }}>🔒</span>
@@ -160,6 +164,20 @@ export default function BranchHRDashboard() {
     else if (Object.values(locks).some(l => l.status === 'branch_locked')) setWorkflowStep(2);
     else setWorkflowStep(1);
   }, [locks]);
+
+  useEffect(() => {
+    if (attendanceLocks && Object.keys(attendanceLocks).length) {
+      // merge keeping INITIAL_LOCKS as defaults
+      setLocks(prev => ({ ...prev, ...attendanceLocks } as Record<string, LockState>));
+    }
+  }, [attendanceLocks]);
+
+  // open branch if requested via query param `?open=branch-id`
+  useEffect(() => {
+    const q = new URLSearchParams(location.search);
+    const open = q.get('open');
+    if (open) setSelectedId(open);
+  }, [location.search]);
 
   // ── Derived ───────────────────────────────────────────────────────────────
   const lockStats = useMemo(() => ({
@@ -388,6 +406,13 @@ export default function BranchHRDashboard() {
                   <span><span className="bcard-dot" style={{ background: '#d97706' }} />{late} Late</span>
                   <span><span className="bcard-dot" style={{ background: '#dc2626' }} />{abs} Absent</span>
                 </div>
+                {lk.status === 'branch_locked' && (
+                  <div style={{ marginTop: 10, display: 'flex', gap: 8 }} onClick={(e) => e.stopPropagation()}>
+                    <button className="btn btn-sm" type="button" onClick={() => exportBranch(b.id)}>📤 Export</button>
+                    <button className="btn btn-sm btn-danger" type="button" onClick={() => { setSelectedId(b.id); setTimeout(() => setShowReject(true), 0); }}>↩️ Send Back</button>
+                    <button className="btn btn-sm btn-success" type="button" onClick={() => { setSelectedId(b.id); setTimeout(() => setShowVerify(true), 0); }}>✅ Verify & Accept</button>
+                  </div>
+                )}
               </div>
             );
           })}
@@ -463,6 +488,41 @@ export default function BranchHRDashboard() {
                   <div className="ms-card"><div className="ms-val" style={{ color: 'var(--red)' }}>{detailStats.abs}</div><div className="ms-lbl">Absent</div></div>
                   <div className="ms-card"><div className="ms-val" style={{ color: 'var(--violet)' }}>{detailStats.olv}</div><div className="ms-lbl">On Leave</div></div>
                 </div>
+                {/* Unlock Requests (if any) */}
+                {selectedLock.unlockRequests && selectedLock.unlockRequests.length > 0 && (
+                  <div style={{ marginTop: 14, padding: 12, border: '1px dashed var(--amber-m)', borderRadius: 8, background: '#fff7ed' }}>
+                    <div style={{ fontSize: 13, fontWeight: 700, color: 'var(--amber)' }}>🔔 Unlock Requests</div>
+                    <div style={{ fontSize: 12, color: 'var(--t2)', marginTop: 8 }}>
+                      {selectedLock.unlockRequests.map((code: string) => (
+                        <div key={code} style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 8, padding: '8px 0' }}>
+                          <div>{code}</div>
+                          <div style={{ display: 'flex', gap: 8 }}>
+                            <button className="btn btn-sm btn-primary" onClick={() => {
+                              // approve single unlock for employee code
+                              setAttendanceLocks(prev => {
+                                const list = Array.isArray((prev[selectedId!] || {}).unlockRequests) ? (prev[selectedId!] || {}).unlockRequests.slice() : [];
+                                const idx = list.indexOf(code);
+                                if (idx >= 0) list.splice(idx, 1);
+                                const next = { ...(prev[selectedId!] || {}), unlockRequests: list, unlockedEmployees: [
+                                  ...(((prev[selectedId!] || {}).unlockedEmployees) || []), code
+                                ] };
+                                return { ...prev, [selectedId!]: next };
+                              });
+                              // also update local locks
+                              setLocks(p => ({ ...p, [selectedId!]: { ...p[selectedId!], unlockRequests: (p[selectedId!]?.unlockRequests || []).filter((c: string) => c !== code), unlockedEmployees: [...((p[selectedId!]?.unlockedEmployees) || []), code] } }));
+                              toast(`✅ Unlock approved for ${code}`, 'success');
+                            }}>Approve</button>
+                            <button className="btn btn-sm btn-ghost" onClick={() => {
+                              setAttendanceLocks(prev => ({ ...prev, [selectedId!]: { ...prev[selectedId!], unlockRequests: (prev[selectedId!]?.unlockRequests || []).filter((c: string) => c !== code) } }));
+                              setLocks(p => ({ ...p, [selectedId!]: { ...p[selectedId!], unlockRequests: (p[selectedId!]?.unlockRequests || []).filter((c: string) => c !== code) } }));
+                              toast(`↩️ Request removed for ${code}`, 'info');
+                            }}>Dismiss</button>
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                )}
 
                 {/* Employee Table */}
                 <div className="card-header" style={{ background: '#fafbff', borderRadius: '10px 10px 0 0', border: '1px solid var(--border)', marginBottom: 0 }}>

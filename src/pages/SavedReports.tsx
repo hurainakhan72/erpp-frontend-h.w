@@ -4,6 +4,7 @@
 
 import React, { useState, useMemo, useCallback } from 'react';
 import { useAuth } from '../context/AuthContext';
+import { useData } from '../context/DataContext';
 import {
   BRANCHES, EMP_DATA, INITIAL_LOCKS, INITIAL_REPORTS,
   nameGrad, getIni, SHARED_CSS,
@@ -153,8 +154,9 @@ export default function SavedReports() {
   }
 
   // ── State ─────────────────────────────────────────────────────────────────
-  const [reports,      setReports]      = useState<SavedReport[]>(INITIAL_REPORTS);
-  const [locks,        setLocks]        = useState(INITIAL_LOCKS);
+  const { savedReports, setSavedReports, attendanceLocks, setAttendanceLocks } = useData();
+  const [reports,      setReports]      = useState<SavedReport[]>(savedReports.length ? savedReports : INITIAL_REPORTS);
+  const [locks,        setLocks]        = useState(attendanceLocks || INITIAL_LOCKS);
   const [activeTab,    setActiveTab]    = useState<'finalized' | 'pending' | 'rejected'>('finalized');
   const [viewReport,   setViewReport]   = useState<SavedReport | null>(null);
   const [monthFilter,  setMonthFilter]  = useState('all');
@@ -304,6 +306,10 @@ export default function SavedReports() {
                     </div>
                     <div className="saved-btns">
                       <button className="btn btn-ghost" onClick={() => setViewReport(r)}>👁 View</button>
+                      <button className="btn btn-ghost" onClick={() => {
+                        const b = BRANCHES.find(x => x.name === r.branch);
+                        if (b) window.location.href = `/hr/branch-dashboard?open=${encodeURIComponent(b.id)}`;
+                      }}>🏢 Open Branch</button>
                       <button className="btn btn-outline-green" onClick={() => exportReport(r)}>📤 Export</button>
                     </div>
                   </div>
@@ -345,7 +351,7 @@ export default function SavedReports() {
                       <div className="saved-btns">
                         <button
                           className="btn btn-green"
-                          onClick={() => {
+                            onClick={() => {
                             const now = new Date().toLocaleString('en-PK', { hour12: false }).slice(0, 16);
                             const newLock = { ...lk, status: 'finalized' as const, verifiedBy: 'Head Admin', verifiedAt: now };
                             setLocks(p => ({ ...p, [b.id]: newLock }));
@@ -355,6 +361,9 @@ export default function SavedReports() {
                               empCount: emps.length, data: emps,
                             };
                             setReports(p => [...p, rep]);
+                            // persist globally
+                            setSavedReports((prev: any[]) => [...prev, rep]);
+                            setAttendanceLocks((prev: any) => ({ ...prev, [b.id]: newLock }));
                             toast(`✅ ${b.name} verified & finalized!`, 'success');
                           }}>
                           ✅ Verify

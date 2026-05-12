@@ -111,6 +111,8 @@ interface DataContextType {
   setTaxConfig: (fn: (prev: typeof defaultTaxConfig) => typeof defaultTaxConfig) => void;
   globalDays: typeof defaultGlobalDays;
   setGlobalDays: (fn: (prev: typeof defaultGlobalDays) => typeof defaultGlobalDays) => void;
+  savedReports: any[];
+  setSavedReports: (fn: (prev: any[]) => any[]) => void;
 }
 
 const DataContext = createContext<DataContextType | null>(null);
@@ -155,6 +157,7 @@ export function DataProvider({ children }: { children: ReactNode }) {
   const [customFields, setCustomFields] = usePersisted('customFields', defaultCustomFields);
   const [taxConfig, setTaxConfig] = usePersisted('taxConfig', defaultTaxConfig);
   const [globalDays, setGlobalDays] = usePersisted('globalDays', defaultGlobalDays);
+  const [savedReports, setSavedReports] = usePersisted('savedReports', [] as any[]);
 
   const addEmployee = useCallback((emp: Employee) => {
     setEmployees(prev => [...prev, emp]);
@@ -193,6 +196,7 @@ export function DataProvider({ children }: { children: ReactNode }) {
       customFields, setCustomFields,
       taxConfig, setTaxConfig,
       globalDays, setGlobalDays,
+      savedReports, setSavedReports,
     }}>
       {children}
     </DataContext.Provider>

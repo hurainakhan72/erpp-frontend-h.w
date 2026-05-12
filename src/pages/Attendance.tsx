@@ -1,5 +1,7 @@
 ﻿import React, { useEffect, useMemo, useState } from 'react';
 import { useAuth } from '../context/AuthContext';
+import { useData } from '../context/DataContext';
+import { useNavigate } from 'react-router-dom';
 
 type ShiftType = 'Morning' | 'Evening' | 'Night';
 type EmployeeStatus = 'Present' | 'Late' | 'Absent' | 'On Leave';
@@ -81,7 +83,12 @@ const Attendance = () => {
     // Treat Head HR as SuperAdmin for the attendance view so they see the same master layout
     if (activeRole === 'super_admin' || activeRole === 'head_hr') {
       setActiveTab('sa');
-    } else if (activeRole === 'hr' || activeRole === 'branch_hr' || activeRole === 'dept_hr') {
+    } else if (
+      activeRole === 'hr' ||
+      activeRole === 'branch_hr' ||
+      activeRole === 'department_hr' ||
+      activeRole === 'dept_hr'
+    ) {
       setActiveTab('hr');
     } else {
       setActiveTab('emp');
@@ -100,8 +107,14 @@ const Attendance = () => {
   }, [activeRole, user]);
 
   const isSuperAdmin = activeRole === 'super_admin' || activeRole === 'head_hr';
-  const isHR = activeRole === 'hr' || activeRole === 'branch_hr' || activeRole === 'dept_hr';
+  const isHR =
+    activeRole === 'hr' ||
+    activeRole === 'branch_hr' ||
+    activeRole === 'department_hr' ||
+    activeRole === 'dept_hr';
   const isEmployee = activeRole === 'employee';
+  const { setAttendanceLocks } = useData();
+  const navigate = useNavigate();
 
   const allowedTabs = useMemo(() => {
     if (isSuperAdmin) {
@@ -202,13 +215,40 @@ const Attendance = () => {
   };
 
   const requestUnlockAttendance = (empCode: string) => {
+    const emp = attendanceRows.find(e => e.code === empCode);
+    const branchId = (emp as any)?.branch || user?.branch || 'head-office';
+    const now = new Date().toISOString();
+
+    // mark local row state for UI
     setAttendanceRows((prev) =>
-      prev.map((emp) =>
-        emp.code === empCode && emp.state === 'submitted'
-          ? { ...emp, state: 'unlock_requested' }
-          : emp
+      prev.map((e) =>
+        e.code === empCode && e.state === 'submitted'
+          ? { ...e, state: 'unlock_requested' as any }
+          : e
       )
     );
+
+    // persist an unlock request so Branch HR / Head HR can see it
+    setAttendanceLocks(prev => {
+      const existing = prev[branchId] || {};
+      const unlocks = Array.isArray(existing.unlockRequests) ? existing.unlockRequests.slice() : [];
+      if (!unlocks.includes(empCode)) unlocks.push(empCode);
+      return ({
+        ...prev,
+        [branchId]: {
+          ...existing,
+          status: existing.status === 'finalized' ? existing.status : 'branch_locked',
+          lockedBy: user?.username || existing.lockedBy || 'requestor',
+          lockedAt: existing.lockedAt || now,
+          branch: branchId,
+          date: modalDate,
+          unlockRequests: unlocks,
+        }
+      });
+    });
+
+    // navigate Branch HR dashboard and open the branch detail
+    navigate(`/hr/branch-dashboard?open=${encodeURIComponent(branchId)}`);
   };
 
   const submitAttendance = (empCode: string) => {
@@ -540,8 +580,46 @@ const Attendance = () => {
                     <div className="hrsub">{formattedDate} <span style={{ background: 'rgba(255,255,255,.2)', padding: '1px 9px', borderRadius: 20, fontSize: 10 }}>{(user?.departments && user.departments[0]) || 'Department' } Department</span></div>
                 </div>
                 <div style={{ display: 'flex', gap: 6 }}>
-                  <button className="btn" style={{ background: 'rgba(255,255,255,.2)', border: 'none', color: '#fff' }} type="button">📤 Export</button>
-                  <button className="btn" style={{ background: 'rgba(255,255,255,.2)', border: 'none', color: '#fff' }} type="button">📥 Import</button>
+                      <button className="btn" style={{ background: 'rgba(255,255,255,.2)', border: 'none', color: '#fff' }} type="button">📤 Export</button>
+                      <button className="btn" style={{ background: 'rgba(255,255,255,.2)', border: 'none', color: '#fff' }} type="button">📥 Import</button>
+                      {(activeRole === 'branch_hr' || activeRole === 'department_hr' || activeRole === 'dept_hr') && (
+                        <button
+                          className="btn prim"
+                          type="button"
+                          onClick={() => {
+                            // determine branch key for lock: prefer user's branch, fallback to department key
+                            const branchId = (user && user.branch) ? user.branch : `dept-${(user && user.departments && user.departments[0]) || 'general'}`;
+                            const now = new Date().toISOString();
+
+                            // ensure rows are at least submitted
+                            setAttendanceRows(prev => prev.map(r => ({ ...r, state: r.state === 'draft' || r.state === 'saved' ? 'submitted' : r.state })));
+
+                            // snapshot of rows to persist
+                            const snapshot = attendanceRows.map(r => ({ ...r }));
+
+                            setAttendanceLocks(prev => {
+                              const existing = prev[branchId] || {};
+                              return {
+                                ...prev,
+                                [branchId]: {
+                                  ...existing,
+                                  status: 'branch_locked',
+                                  lockedBy: (user && user.username) || existing.lockedBy || 'branch_hr',
+                                  lockedAt: now,
+                                  branch: branchId,
+                                  date: modalDate,
+                                  sheet: snapshot,
+                                }
+                              };
+                            });
+
+                            // navigate to Branch HR dashboard and open the branch
+                            navigate(`/hr/branch-dashboard?open=${encodeURIComponent(branchId)}`);
+                          }}
+                        >
+                          📤 Send to Head HR
+                        </button>
+                      )}
                 </div>
               </div>
             </div>
