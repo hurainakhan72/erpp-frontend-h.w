@@ -83,12 +83,7 @@ const Attendance = () => {
     // Treat Head HR as SuperAdmin for the attendance view so they see the same master layout
     if (activeRole === 'super_admin' || activeRole === 'head_hr') {
       setActiveTab('sa');
-    } else if (
-      activeRole === 'hr' ||
-      activeRole === 'branch_hr' ||
-      activeRole === 'department_hr' ||
-      activeRole === 'dept_hr'
-    ) {
+    } else if (activeRole === 'branch_hr' || activeRole === 'department_hr') {
       setActiveTab('hr');
     } else {
       setActiveTab('emp');
@@ -97,7 +92,7 @@ const Attendance = () => {
 
   // If Department HR, pre-filter to their department and keep selection locked
   useEffect(() => {
-    if (activeRole === 'department_hr' || activeRole === 'dept_hr') {
+    if (activeRole === 'department_hr') {
       const dept = (user?.departments && user.departments[0]) || 'All Departments';
       setDeptFilter(dept);
     }
@@ -107,11 +102,7 @@ const Attendance = () => {
   }, [activeRole, user]);
 
   const isSuperAdmin = activeRole === 'super_admin' || activeRole === 'head_hr';
-  const isHR =
-    activeRole === 'hr' ||
-    activeRole === 'branch_hr' ||
-    activeRole === 'department_hr' ||
-    activeRole === 'dept_hr';
+  const isHR = activeRole === 'branch_hr' || activeRole === 'department_hr';
   const isEmployee = activeRole === 'employee';
   const { setAttendanceLocks, requestUnlock, submitAttendanceSheet } = useData();
   const navigate = useNavigate();

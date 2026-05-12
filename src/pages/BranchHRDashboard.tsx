@@ -151,6 +151,7 @@ export default function BranchHRDashboard() {
   const [reports,        setReports]        = useState<SavedReport[]>(INITIAL_REPORTS);
   const [selectedId,     setSelectedId]     = useState<string | null>(null);
   const [branchFilter,   setBranchFilter]   = useState('all');
+  const [branchSelect,   setBranchSelect]   = useState('all');
   const [dateFilter,     setDateFilter]     = useState(new Date().toISOString().split('T')[0]);
   const [searchTerm,     setSearchTerm]     = useState('');
   const [empSearch,      setEmpSearch]      = useState('');
@@ -192,6 +193,7 @@ export default function BranchHRDashboard() {
 
   const filteredBranches = useMemo(() => {
     return BRANCHES.filter(b => {
+      if (branchSelect !== 'all' && b.id !== branchSelect) return false;
       const lk = locks[b.id];
       if (branchFilter !== 'all' && lk?.status !== branchFilter) return false;
       if (searchTerm && !b.name.toLowerCase().includes(searchTerm.toLowerCase())) return false;
@@ -365,6 +367,10 @@ export default function BranchHRDashboard() {
             <option value={new Date().toISOString().split('T')[0]}>📅 Today — {new Date().toLocaleDateString('en-PK', { day: '2-digit', month: 'short', year: 'numeric' })}</option>
             <option value="2026-05-06">📅 Yesterday</option>
             <option value="2026-05-05">📅 05 May 2026</option>
+          </select>
+          <select className="fsel" value={branchSelect} onChange={e => setBranchSelect(e.target.value)}>
+            <option value="all">All Branches</option>
+            {BRANCHES.map(b => <option key={b.id} value={b.id}>{b.name}</option>)}
           </select>
           <select className="fsel" value={branchFilter} onChange={e => setBranchFilter(e.target.value)}>
             <option value="all">All Status</option>

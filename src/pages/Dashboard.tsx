@@ -94,7 +94,7 @@ const SHead = ({ icon, title, right }: { icon:React.ReactNode; title:string; rig
 // ══════════════════════════════════════════════════════════════════════════════
 export default function Dashboard() {
   const { user, activeRole } = useAuth();
-  const { leaveRequests, employees, globalDays } = useData();
+  const { leaveRequests, employees, globalDays, allAttendanceToday } = useData();
   const navigate = useNavigate();
 
   const [selectedBranch, setSelectedBranch] = useState<string>('All');
@@ -145,6 +145,14 @@ export default function Dashboard() {
   );
 
   const pendingLv = visibleLeaveRequests.filter((l:any) => l.status === "Pending").length;
+
+  // Birthdays from real employees
+  const todayDate = new Date();
+  const todaysBirthdays = (employees || []).filter((e:any) => {
+    if (!e.dob) return false;
+    const d = new Date(e.dob);
+    return d.getDate() === todayDate.getDate() && d.getMonth() === todayDate.getMonth();
+  });
 
   const attendanceChartData = useMemo(() => {
     const base = Math.max(totalEmp, 8);
@@ -203,14 +211,12 @@ export default function Dashboard() {
   const uName = (user as any)?.username || "User";
 
   // ── Notifications ──
-  const notifs = [
-    {id:1,title:"Leave Request Pending",  msg: `${pendingLv} requests awaiting approval`, time:"Just now",   link:"/leave", read:false},
-    {id:2,title:"Incomplete Attendance",  msg:"3 employees haven't marked attendance today", time:"2 hrs ago", link:"/attendance", read:false},
-    {id:3,title:"Contract Expiry Alert",  msg:"Usman Malik's contract expires in 8 days", time:"Yesterday", link:"/employees", read:false},
-    {id:4,title:"New Employee Onboarded", msg:"Bilal Ahmed added successfully", time:"Yesterday", link:"/employees", read:true},
-    {id:5,title:"Probation Period Ending",msg:"Fatima Raza's probation ends in 12 days", time:"2 days ago", link:"/employees", read:true},
-  ];
-  const unread = notifs.filter(n=>!n.read).length;
+  // Build notifications from real data
+  const sysNotifs = [] as any[];
+  if (pendingLv > 0) sysNotifs.push({ id: 'n-leave', title: 'Leave Requests Pending', msg: `${pendingLv} request(s) awaiting approval`, time: 'Now', link: '/leave', read: false });
+  const incompleteCount = (allAttendanceToday || []).filter((a:any) => !a.checkIn || a.checkIn === '--').length;
+  if (incompleteCount > 0) sysNotifs.push({ id: 'n-att', title: 'Incomplete Attendance', msg: `${incompleteCount} employees haven't marked attendance today`, time: 'Today', link: '/attendance', read: false });
+  const unread = sysNotifs.filter(n => !n.read).length;
 
   // Merge calendar/globalDays into announcements so additions in Calendar appear here
   const combinedAnnouncements = useMemo(() => {
@@ -236,8 +242,8 @@ export default function Dashboard() {
   // ── Pending actions ──
   const actions = [
     {emoji:"📋", text: `${pendingLv||2} leave requests awaiting approval`, cta:"Review →", link:"/leave"},
-    {emoji:"⏰", text:"Attendance incomplete — 3 employees", cta:"Mark →", link:"/attendance"},
-    {emoji:"🏦", text:"Bank info missing — EMP004, EMP005", cta:"Fix →", link:"/employees"},
+    {emoji:"⏰", text:`Attendance incomplete — ${incompleteCount} employees`, cta:"Mark →", link:"/attendance"},
+    {emoji:"🎂", text: todaysBirthdays.length ? `${todaysBirthdays.length} birthdays today` : 'No birthdays today', cta:"View →", link:"/employees"},
   ];
 
   // ── Urgent alerts ──

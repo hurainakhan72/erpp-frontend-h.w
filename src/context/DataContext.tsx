@@ -176,6 +176,11 @@ export function DataProvider({ children }: { children: ReactNode }) {
     setEmployees(prev => [...prev, emp]);
   }, [setEmployees]);
 
+  const logAction = useCallback((action: string, meta?: any) => {
+    const entry = { id: 'a' + Date.now(), action, meta: meta || {}, at: new Date().toISOString() };
+    setAuditLog(prev => [...prev, entry]);
+  }, [setAuditLog]);
+
   const submitAttendanceSheet = useCallback((branchId: string, sheet: any[], user?: string, date?: string) => {
     const now = new Date().toISOString();
     setAttendanceLocks(prev => {
@@ -268,6 +273,7 @@ export function DataProvider({ children }: { children: ReactNode }) {
       taxConfig, setTaxConfig,
       globalDays, setGlobalDays,
       savedReports, setSavedReports,
+      logAction,
     }}>
       {children}
     </DataContext.Provider>

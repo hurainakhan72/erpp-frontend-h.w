@@ -1,4 +1,6 @@
 import React, { useState, useEffect } from "react";
+import { useData } from "../context/DataContext";
+import { useAuth } from "../context/AuthContext";
 
 
 export default function AnnouncementsFeed() {
@@ -67,6 +69,44 @@ export default function AnnouncementsFeed() {
       localStorage.setItem("announcements", JSON.stringify(defaultPosts));
     }
   }, []);
+
+  // System-generated notifications from real data
+  const { leaveRequests, attendanceLocks, employees, allAttendanceToday } = useData();
+  const { user, activeRole } = useAuth();
+
+  useEffect(() => {
+    // create a few system notifications
+    const sys: any[] = [];
+    const myVisible = (user && user.role && user.role !== 'employee');
+
+    const pendingLeaves = leaveRequests?.filter((l:any) => l.status === 'Pending') || [];
+    if (pendingLeaves.length) {
+      sys.push({ id: 'SYS-LEAVE', title: 'Leave Requests Pending', body: `${pendingLeaves.length} requests need attention`, type: 'pending_action', timestamp: new Date().toISOString(), audience: 'HR', actionRequired: true, actionUrl: '/leave' });
+    }
+
+    // unlock requests in attendanceLocks
+    const unlockCount = Object.values(attendanceLocks || {}).reduce((acc:any, cur:any) => acc + ((cur.unlockRequests || []).length), 0);
+    if (unlockCount > 0) {
+      sys.push({ id: 'SYS-UNLOCK', title: 'Unlock Requests', body: `${unlockCount} unlock request(s) pending`, type: 'pending_action', timestamp: new Date().toISOString(), audience: 'HR', actionRequired: true, actionUrl: '/branch-hr' });
+    }
+
+    // attendance incomplete for today
+    const incomplete = (allAttendanceToday || []).filter((a:any) => !a.checkIn || a.checkIn === '--').length;
+    if (incomplete > 0) {
+      sys.push({ id: 'SYS-ATT', title: 'Incomplete Attendance', body: `${incomplete} employees haven't marked attendance today`, type: 'pending_action', timestamp: new Date().toISOString(), audience: 'HR', actionRequired: true, actionUrl: '/attendance' });
+    }
+
+    if (sys.length) {
+      setPosts(prev => {
+        const existingSysIds = new Set(prev.map(p => p.id).filter(id => String(id).startsWith('SYS-')));
+        const merged = [
+          ...sys.filter(s => !existingSysIds.has(s.id)),
+          ...prev
+        ];
+        return merged;
+      });
+    }
+  }, [leaveRequests, attendanceLocks, allAttendanceToday, user]);
 
 
   // Save to localStorage whenever posts change
