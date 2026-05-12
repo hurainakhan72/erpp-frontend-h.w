@@ -1,21 +1,21 @@
-# Feature / Module Gap Matrix
+## Feature / Module Gap Matrix
 
 Generated: 2026-05-12
 
-| # | Feature / Module | Backend Status | Frontend Status | Gap Level |
+| # | Feature | Backend Status | Frontend Status | Gap |
 |---:|---|---|---|---|
-| 1 | Advanced Attendance Workflow | Full (draft, saved, submitted, acknowledged, unlock request & approval) | Basic marking only | ★★★★★ Very High |
-| 2 | Attendance Submit to HO | Full API | Not implemented | ★★★★★ Very High |
-| 3 | Attendance Unlock + HO Approval | Full flow | Not done | ★★★★★ Very High |
-| 4 | Penalty Multi-level Approval | Propose → HR → HO → Employee Acknowledge | UI only (mock) | ★★★★★ Very High |
-| 5 | Notifications + Pending Actions | Dedicated module + APIs | Only Announcements feed | ★★★★ High |
-| 6 | Calendar Events | Full API (`/api/calendar`) | LocalStorage / Mock only | ★★★★ High |
-| 7 | Multi-Step Employee Creation | 6 separate backend steps | Single form (`AddEmployee`) | ★★★★ High |
-| 8 | Audit Logs & Activity Logs | Full tables + APIs | Page exists but mock data | ★★★★ High |
-| 9 | Leave Capacity & Policy Engine | Department-wise capacity, overlap check, auto balance | Basic leave only | ★★★ High |
-| 10 | Job History Automatic Tracking | Auto insert in `employee_job_history` | Manual promotions only | ★★★ High |
+| 1 | Advanced Attendance States | Full (draft → submitted → acknowledged, unlock flow) | Basic only | ★★★★★ Very High |
+| 2 | Attendance Submit to HO | API available | Not connected | ★★★★★ Very High |
+| 3 | Attendance Unlock + Approval | Full workflow | Not implemented | ★★★★★ Very High |
+| 4 | Penalty Multi-Level Workflow | Propose → Approve → Employee Acknowledge | UI only (mock data) | ★★★★★ Very High |
+| 5 | Calendar Events | Full API (`/api/calendar`) | LocalStorage / Mock | ★★★★ High |
+| 6 | Notifications System | Dedicated module + APIs | Announcements feed only | ★★★★ High |
+| 7 | Multi-Step Employee Onboarding | 6 backend steps | Single form (`AddEmployee.tsx`) | ★★★★ High |
+| 8 | Audit Log | Full backend support | Page exists but mock | ★★★★ High |
+| 9 | Leave Capacity & Policy | Department-wise policy engine | Basic leave page only | ★★★ High |
+| 10 | Job History Auto Tracking | Automatic in backend | Manual promotions only | ★★★ High |
 
 Notes:
-- This matrix tracks backend coverage vs frontend implementation and prioritizes work.
-- Use the todo list for implementation planning; high-priority items should be scheduled first.
+- This matrix reflects backend coverage vs current frontend implementation and prioritizes action items.
+- Use the project todo list to create focused tasks for each high-priority item.
 
