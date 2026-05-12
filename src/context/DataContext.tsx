@@ -86,6 +86,10 @@ interface DataContextType {
   setAllAttendanceToday: (fn: (prev: any[]) => any[]) => void;
   attendanceLocks: Record<string, AttendanceLock>;
   setAttendanceLocks: (fn: (prev: Record<string, AttendanceLock>) => Record<string, AttendanceLock>) => void;
+  // helpers for attendance workflow
+  submitAttendanceSheet: (branchId: string, sheet: any[], user?: string, date?: string) => void;
+  requestUnlock: (branchId: string, empCode: string, user?: string) => void;
+  approveUnlock: (branchId: string, empCode: string, approver?: string) => void;
   departments: string[];
   setDepartments: (fn: (prev: string[]) => string[]) => void;
   designations: string[];
@@ -172,6 +176,61 @@ export function DataProvider({ children }: { children: ReactNode }) {
     setEmployees(prev => [...prev, emp]);
   }, [setEmployees]);
 
+  const submitAttendanceSheet = useCallback((branchId: string, sheet: any[], user?: string, date?: string) => {
+    const now = new Date().toISOString();
+    setAttendanceLocks(prev => {
+      const existing = prev[branchId] || {} as AttendanceLock;
+      return {
+        ...prev,
+        [branchId]: {
+          ...existing,
+          status: 'branch_locked',
+          lockedBy: user || existing.lockedBy || 'branch_hr',
+          lockedAt: now,
+          branch: branchId,
+          date: date || existing.date || now.slice(0,10),
+          sheet: sheet || existing.sheet || [],
+        }
+      };
+    });
+  }, [setAttendanceLocks]);
+
+  const requestUnlock = useCallback((branchId: string, empCode: string, user?: string) => {
+    const now = new Date().toISOString();
+    setAttendanceLocks(prev => {
+      const existing = prev[branchId] || {} as AttendanceLock;
+      const unlocks = Array.isArray(existing.unlockRequests) ? existing.unlockRequests.slice() : [];
+      if (!unlocks.includes(empCode)) unlocks.push(empCode);
+      return {
+        ...prev,
+        [branchId]: {
+          ...existing,
+          unlockRequests: unlocks,
+          status: existing.status === 'finalized' ? existing.status : 'branch_locked',
+          lockedBy: existing.lockedBy || user || 'requestor',
+          lockedAt: existing.lockedAt || now,
+        }
+      };
+    });
+  }, [setAttendanceLocks]);
+
+  const approveUnlock = useCallback((branchId: string, empCode: string, approver?: string) => {
+    setAttendanceLocks(prev => {
+      const existing = prev[branchId] || {} as AttendanceLock;
+      const unlocks = Array.isArray(existing.unlockRequests) ? existing.unlockRequests.filter(c => c !== empCode) : [];
+      const unlocked = Array.isArray(existing.unlockedEmployees) ? existing.unlockedEmployees.slice() : [];
+      if (!unlocked.includes(empCode)) unlocked.push(empCode);
+      return {
+        ...prev,
+        [branchId]: {
+          ...existing,
+          unlockRequests: unlocks,
+          unlockedEmployees: unlocked,
+        }
+      };
+    });
+  }, [setAttendanceLocks]);
+
   const deleteEmployee = useCallback((id: string) => {
     setEmployees(prev => prev.filter(e => e.id !== id));
   }, [setEmployees]);
@@ -188,6 +247,9 @@ export function DataProvider({ children }: { children: ReactNode }) {
       attendanceData, setAttendanceData,
       allAttendanceToday, setAllAttendanceToday,
       attendanceLocks, setAttendanceLocks,
+      submitAttendanceSheet,
+      requestUnlock,
+      approveUnlock,
       departments, setDepartments,
       designations, setDesignations,
       workModes, setWorkModes,

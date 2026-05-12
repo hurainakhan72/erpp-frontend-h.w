@@ -220,6 +220,9 @@ export default function BranchHRDashboard() {
       verifiedAt: now,
     };
     setLocks(p => ({ ...p, [selectedId]: newLock }));
+    
+    // persist to central attendanceLocks
+    setAttendanceLocks(prev => ({ ...prev, [selectedId]: { ...(prev[selectedId] || {}), status: 'finalized', verifiedBy: 'Head Admin', verifiedAt: now } }));
 
     // Save to reports
     const rep: SavedReport = {
@@ -233,6 +236,11 @@ export default function BranchHRDashboard() {
       data: selectedEmps,
     };
     setReports(p => {
+      const idx = p.findIndex(r => r.branch === selectedBranch.name && r.date === dateFilter);
+      return idx >= 0 ? p.map((r, i) => i === idx ? rep : r) : [...p, rep];
+    });
+    // also persist to global savedReports
+    setSavedReports(p => {
       const idx = p.findIndex(r => r.branch === selectedBranch.name && r.date === dateFilter);
       return idx >= 0 ? p.map((r, i) => i === idx ? rep : r) : [...p, rep];
     });

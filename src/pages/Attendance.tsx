@@ -113,7 +113,7 @@ const Attendance = () => {
     activeRole === 'department_hr' ||
     activeRole === 'dept_hr';
   const isEmployee = activeRole === 'employee';
-  const { setAttendanceLocks } = useData();
+  const { setAttendanceLocks, requestUnlock, submitAttendanceSheet } = useData();
   const navigate = useNavigate();
 
   const allowedTabs = useMemo(() => {
@@ -228,24 +228,8 @@ const Attendance = () => {
       )
     );
 
-    // persist an unlock request so Branch HR / Head HR can see it
-    setAttendanceLocks(prev => {
-      const existing = prev[branchId] || {};
-      const unlocks = Array.isArray(existing.unlockRequests) ? existing.unlockRequests.slice() : [];
-      if (!unlocks.includes(empCode)) unlocks.push(empCode);
-      return ({
-        ...prev,
-        [branchId]: {
-          ...existing,
-          status: existing.status === 'finalized' ? existing.status : 'branch_locked',
-          lockedBy: user?.username || existing.lockedBy || 'requestor',
-          lockedAt: existing.lockedAt || now,
-          branch: branchId,
-          date: modalDate,
-          unlockRequests: unlocks,
-        }
-      });
-    });
+    // persist using DataContext helper
+    requestUnlock(branchId, empCode, user?.username || 'requestor');
 
     // navigate Branch HR dashboard and open the branch detail
     navigate(`/hr/branch-dashboard?open=${encodeURIComponent(branchId)}`);
@@ -591,27 +575,12 @@ const Attendance = () => {
                             const branchId = (user && user.branch) ? user.branch : `dept-${(user && user.departments && user.departments[0]) || 'general'}`;
                             const now = new Date().toISOString();
 
-                            // ensure rows are at least submitted
-                            setAttendanceRows(prev => prev.map(r => ({ ...r, state: r.state === 'draft' || r.state === 'saved' ? 'submitted' : r.state })));
+                            // ensure rows are at least submitted and build snapshot
+                            const snapshot = attendanceRows.map(r => ({ ...r, state: r.state === 'draft' || r.state === 'saved' ? 'submitted' : r.state }));
+                            setAttendanceRows(snapshot);
 
-                            // snapshot of rows to persist
-                            const snapshot = attendanceRows.map(r => ({ ...r }));
-
-                            setAttendanceLocks(prev => {
-                              const existing = prev[branchId] || {};
-                              return {
-                                ...prev,
-                                [branchId]: {
-                                  ...existing,
-                                  status: 'branch_locked',
-                                  lockedBy: (user && user.username) || existing.lockedBy || 'branch_hr',
-                                  lockedAt: now,
-                                  branch: branchId,
-                                  date: modalDate,
-                                  sheet: snapshot,
-                                }
-                              };
-                            });
+                            // persist using DataContext helper
+                            submitAttendanceSheet(branchId, snapshot, (user && user.username) || 'branch_hr', modalDate);
 
                             // navigate to Branch HR dashboard and open the branch
                             navigate(`/hr/branch-dashboard?open=${encodeURIComponent(branchId)}`);
