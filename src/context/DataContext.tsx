@@ -172,6 +172,45 @@ export function DataProvider({ children }: { children: ReactNode }) {
   const [globalDays, setGlobalDays] = usePersisted('globalDays', defaultGlobalDays);
   const [savedReports, setSavedReports] = usePersisted('savedReports', [] as any[]);
 
+  // If configured, attempt to fetch live data from backend and replace defaults.
+  useEffect(() => {
+    const useBackend = import.meta.env.VITE_USE_BACKEND === 'true';
+    if (!useBackend) return;
+    // lazy-load to avoid breaking environments where backendClient isn't wanted
+    (async () => {
+      try {
+        const bc = await import('../services/backendClient');
+        const demoEmail = import.meta.env.VITE_DEMO_EMAIL;
+        const demoPass = import.meta.env.VITE_DEMO_PASSWORD;
+        let token: string | undefined = undefined;
+        if (demoEmail && demoPass) {
+          const resp: any = await bc.login(demoEmail, demoPass).catch(() => null);
+          if (resp && resp.data && resp.data.token) token = resp.data.token;
+        }
+
+        // fetch and replace core datasets when available
+        const [empsRes, attRes, leavesRes, payrollRes, promosRes, pensRes] = await Promise.allSettled([
+          bc.fetchEmployees(token),
+          bc.fetchAttendance(token),
+          bc.fetchLeaveRequests(token),
+          bc.fetchPayroll(token).catch(() => null),
+          bc.fetchPromotions(token).catch(() => null),
+          bc.fetchPenalties(token).catch(() => null),
+        ]);
+
+        if (empsRes.status === 'fulfilled' && Array.isArray(empsRes.value?.data)) setEmployees(() => empsRes.value.data);
+        if (attRes.status === 'fulfilled' && Array.isArray(attRes.value?.data)) setAttendanceData(() => attRes.value.data);
+        if (leavesRes.status === 'fulfilled' && Array.isArray(leavesRes.value?.data)) setLeaveRequests(() => leavesRes.value.data);
+        if (payrollRes.status === 'fulfilled' && Array.isArray(payrollRes.value?.data)) setPayrollData(() => payrollRes.value.data);
+        if (promosRes.status === 'fulfilled' && Array.isArray(promosRes.value?.data)) setPromotions(() => promosRes.value.data);
+        if (pensRes.status === 'fulfilled' && Array.isArray(pensRes.value?.data)) setPenalties(() => pensRes.value.data);
+      } catch (err) {
+        // ignore — keep mock/local data
+        // console.warn('Backend sync failed', err);
+      }
+    })();
+  }, []);
+
   const addEmployee = useCallback((emp: Employee) => {
     setEmployees(prev => [...prev, emp]);
   }, [setEmployees]);
